@@ -1,0 +1,3 @@
+# Configuration settings
+API_KEY = "YOUR_API_KEY_HERE"
+SEARCH_ENGINE_ID = "YOUR_SEARCH_ENGINE_ID_HERE"
