@@ -19,8 +19,8 @@ except Exception as e:
 
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
-    # 1. Search the web
-    search_query = f'"looking for {property_type}" OR "need to rent {property_type}" {city} (site:linkedin.com OR site:reddit.com)'
+    # 1. Search the web (UPDATED QUERY: Strict filtering to avoid broker profiles)
+    search_query = f'("looking for {property_type}" OR "need {property_type}") {city} -broker -agent -realtor (site:reddit.com OR site:linkedin.com/posts/ OR site:linkedin.com/feed/update/)'
     
     with st.spinner("Scouting the web..."):
         # Reduced max_results to 5 to keep the data cleaner and faster
@@ -37,12 +37,16 @@ def run_scout(city, property_type):
     # DEFENSIVE TRUNCATION: Hard cap the text at ~40,000 characters just to be safe
     raw_content = raw_content[:40000]
 
-    # 2. Extract with AI
+    # 2. Extract with AI (UPDATED PROMPT: The "Iron Wall" against broker spam)
     with st.spinner("AI filtering noise and extracting leads..."):
         system_prompt = """
-        You are an expert real estate lead scout. I will give you raw web search results. 
-        Your job is to identify GENUINE individuals looking to buy, rent, or lease property. 
-        Ignore broker listings, news articles, and spam.
+        You are an elite real estate lead scout. I will give you raw web search results. 
+        Your ONLY job is to identify GENUINE individuals (consumers/businesses) posting that they want to buy, rent, or lease property right now.
+        
+        CRITICAL RULES:
+        1. REJECT BROKERS: If the text sounds like a real estate agent offering services, ignore it.
+        2. REJECT PROFILES: If the URL is just a generic profile (e.g., linkedin.com/in/username) and not a specific post about needing property, ignore it.
+        3. REJECT LISTINGS: If someone is "leasing out" or "selling" their property, ignore it. We only want buyers/renters.
         
         Return ONLY a valid JSON array of objects with these keys:
         "Intent" (Buy/Rent/Lease), "Property Type", "Location", "Budget", "Source_Link", "Confidence_Score".
