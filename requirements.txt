@@ -1,7 +1,9 @@
-streamlit
-crewai
-langchain
-openai
-transformers
+beautifulsoup4
+scrapy
+google-api-python-client
+facebook-sdk
+twitter-api
+linkedin-api
 pandas
-requests
+scikit-learn
+streamlit
