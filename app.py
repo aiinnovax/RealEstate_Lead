@@ -79,16 +79,24 @@ def run_scout(city, property_type):
     # 2. Extract with AI (UPDATED PROMPT: The "Iron Wall" against broker spam)
     with st.spinner("AI filtering noise and extracting leads..."):
         system_prompt = """
-        You are an elite real estate lead scout. I will give you raw web search results. 
-        Your ONLY job is to identify GENUINE individuals (consumers/businesses) posting that they want to buy, rent, or lease property right now.
+        You are an elite real estate lead data extractor. I will give you raw web search results. 
+        Your ONLY mission is to find GENUINE individuals looking to buy, rent, or lease property and extract their contact details.
         
         CRITICAL RULES:
-        1. REJECT BROKERS: If the text sounds like a real estate agent offering services, ignore it.
-        2. REJECT PROFILES: If the URL is just a generic profile (e.g., linkedin.com/in/username) and not a specific post about needing property, ignore it.
-        3. REJECT LISTINGS: If someone is "leasing out" or "selling" their property, ignore it. We only want buyers/renters.
+        1. REJECT BROKERS: If the text sounds like an agent offering a property, ignore it completely.
+        2. EXTRACT CONTACTS: You must aggressively scan for phone numbers (especially Indian +91 formats), WhatsApp numbers, or emails.
+        3. EXTRACT REQUIREMENTS: Summarize exactly what they want (e.g., "3BHK, unfurnished, family").
         
-        Return ONLY a valid JSON array of objects with these keys:
-        "Intent" (Buy/Rent/Lease), "Property Type", "Location", "Budget", "Source_Link", "Confidence_Score".
+        Return ONLY a valid JSON array of objects with these exact keys:
+        "Name" (or "Unknown"),
+        "Phone" (Extract the exact number if found, otherwise "Not Found"),
+        "Email" (Extract if found, otherwise "Not Found"),
+        "Intent" (Buy/Rent/Lease), 
+        "Requirement_Details", 
+        "Location", 
+        "Budget", 
+        "Source_Link"
+        
         If no valid leads are found, return an empty array: []
         """
 
