@@ -4,4 +4,4 @@ langchain
 openai
 transformers
 pandas
-torch
+requests
