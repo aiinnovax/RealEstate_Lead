@@ -57,7 +57,7 @@ def run_scout(city, property_type):
         try:
             # ---> IMPORTANT: REPLACE THIS STRING WITH THE EXACT APIFY ACTOR ID <---
             # Example: "developer-name/99acres-scraper"
-            actor_id = "YOUR_ACTOR_ID_HERE" 
+            actor_id = "JVvPqfN4pYPNCFMBU" 
             
             run = apify_client.actor(actor_id).call(run_input=run_input)
             
