@@ -57,7 +57,12 @@ def run_scout(city, property_type):
         try:
             # CORRECT ACTOR ID
             actor_id = "fatihtahta/99acres-scraper" 
-            
+            # 1. APIFY INPUT: Corrected for fatihtahta's scraper requirements
+        run_input = {
+            "search_url": f"https://www.99acres.com/search/property/buy/{city.lower()}",
+            "max_items": 10,
+            "keyword": property_type
+        }
             run = apify_client.actor(actor_id).call(run_input=run_input)
             
             raw_content = ""
