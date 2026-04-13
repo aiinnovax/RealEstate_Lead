@@ -33,8 +33,8 @@ if not check_password():
 
 # --- Initialize API Clients ---
 try:
-    apify_client = ApifyClient(st.secrets["apify_api_9BjBpKYhSt3blyM7qQvldjI8bCqdmO0XMAK9"])
-    groq_client = Groq(api_key=st.secrets["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"])
+    apify_client = ApifyClient(st.secrets["APIFY_API_TOKEN"])
+    groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     api_status = "🟢 System Ready"
 except Exception as e:
     api_status = "🔴 Missing API Keys"
