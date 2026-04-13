@@ -145,3 +145,5 @@ if len(st.session_state.lead_database) > 0:
         mime="text/csv",
         type="primary"
     )
+# 1. Search the web (UPDATED QUERY)
+    search_query = f'("looking for {property_type}" OR "need {property_type}") {city} -broker -agent -realtor (site:reddit.com OR site:linkedin.com/posts/ OR site:linkedin.com/feed/update/)'
