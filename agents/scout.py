@@ -1,7 +1,9 @@
 import requests
 
-API_KEY = "YOUR_GOOGLE_API_KEY"
-CX = "YOUR_SEARCH_ENGINE_ID"
+API_KEY = "AIzaSyD7buH7nFOwwq2kcQF68Ucm7jRIbNKBpYk"
+CX = "<script async src="https://cse.google.com/cse.js?cx=06d962c38ed374c29">
+</script>
+<div class="gcse-search"></div> "
 
 def get_leads():
     query = "looking for flat rent Ahmedabad OR want to buy property Ahmedabad"
