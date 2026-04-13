@@ -149,3 +149,48 @@ if len(st.session_state.lead_database) > 0:
         mime="text/csv",
         type="primary"
     )
+# --- 4. AI Outreach Assistant ---
+    st.divider()
+    st.subheader("💬 AI Outreach Assistant")
+    st.markdown("Select a lead below to instantly generate a personalized, high-converting outreach message.")
+
+    # Create a clean list of options for the dropdown
+    lead_options = [f"{lead['Intent']} - {lead['Property Type']} in {lead['Location']} (Budget: {lead['Budget']})" for lead in st.session_state.lead_database]
+    
+    # Dropdown to select a specific lead
+    selected_lead_idx = st.selectbox("Select a Lead to Pitch:", range(len(lead_options)), format_func=lambda x: lead_options[x])
+
+    if st.button("✨ Draft Personalized Pitch"):
+        target_lead = st.session_state.lead_database[selected_lead_idx]
+
+        with st.spinner("Writing the perfect message..."):
+            draft_prompt = f"""
+            You are a highly successful, approachable real estate broker making first contact on LinkedIn or Reddit.
+            Write a short, casual, and highly converting direct message (DM) for a prospect.
+            
+            Prospect details:
+            - Looking to: {target_lead['Intent']}
+            - Property: {target_lead['Property Type']}
+            - Location: {target_lead['Location']}
+            - Budget: {target_lead['Budget']}
+            
+            CRITICAL RULES:
+            1. Keep it under 4 sentences. Short and punchy.
+            2. Do not sound like a corporate robot or a desperate salesperson. Sound human, local, and helpful.
+            3. Include a clear, low-pressure call to action (e.g., asking if they want you to send over a few off-market options that fit their criteria).
+            4. Leave placeholders like [Your Name] and [Prospect Name].
+            """
+
+            try:
+                # We use a slightly higher temperature (0.7) here so the AI is more creative and conversational
+                pitch_completion = groq_client.chat.completions.create(
+                    messages=[{"role": "user", "content": draft_prompt}],
+                    model="llama-3.1-8b-instant",
+                    temperature=0.7, 
+                )
+                pitch_text = pitch_completion.choices[0].message.content
+                
+                st.success("Draft ready! Copy and send.")
+                st.text_area("Your Custom Message:", value=pitch_text, height=200)
+            except Exception as e:
+                st.error(f"Failed to draft message: {e}")
