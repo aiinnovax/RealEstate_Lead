@@ -1,17 +1,12 @@
-def extract_info(text):
-    text_lower = text.lower()
+from transformers import pipeline
 
-    intent = "unknown"
-    if "looking" in text_lower or "need" in text_lower:
-        intent = "rent"
-    elif "sell" in text_lower:
-        intent = "sell"
-    elif "lease" in text_lower:
-        intent = "lease"
+nlp = pipeline("ner", grouped_entities=True)
+
+def extract_info(text):
+    entities = nlp(text)
 
     return {
         "original": text,
-        "intent": intent,
-        "location": "Ahmedabad" if "ahmedabad" in text_lower else "unknown",
-        "budget": "25k" if "25k" in text_lower else "unknown"
+        "entities": entities,
+        "intent": "rent" if "rent" in text.lower() else "buy"
     }
