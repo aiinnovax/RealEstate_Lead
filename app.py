@@ -1,37 +1,26 @@
-# app.py
-import os
-import requests
-from bs4 import BeautifulSoup
-from googleapiclient.discovery import build
-from config import API_KEY, SEARCH_ENGINE_ID
+import streamlit as st
+from config import SEARCH_ENGINE_CODE, API_ENDPOINT, API_KEY, SEARCH_ENGINE_ID
 
-# Function to scrape data from a website
-def scrape_data(url):
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    data = []
-    for item in soup.find_all('div', class_='item'):
-        title = item.find('h2', class_='title').text.strip()
-        price = item.find('span', class_='price').text.strip()
-        data.append({'title': title, 'price': price})
-    return data
+# Create a Streamlit app
+st.title("Ahmedabad Real Estate Search")
+st.write("Search for properties in Ahmedabad")
 
-# Function to fetch data from the Google Custom Search API
-def fetch_data_from_google(query):
-    service = build('customsearch', 'v1', developerKey=API_KEY)
-    res = service.cse().list(q=query, cx=SEARCH_ENGINE_ID).execute()
-    data = []
-    for item in res['items']:
-        title = item['title']
-        link = item['link']
-        data.append({'title': title, 'link': link})
-    return data
+# Render the search engine code
+st.components.v1.html(SEARCH_ENGINE_CODE, height=600, width=800)
 
-# Function to generate leads
-def generate_leads(data):
-    leads = []
-    for item in data:
-        # Apply machine learning algorithm to generate leads
-        # For now, let's just add the item to the leads list
-        leads.append(item)
-    return leads
+# Add a button to get the search results
+if st.button("Get Search Results"):
+    # Use the custom search engine API to get the search results
+    import requests
+    query = "ahmedabad real estate"
+    params = {
+        "key": API_KEY,
+        "cx": SEARCH_ENGINE_ID,
+        "q": query
+    }
+    response = requests.get(API_ENDPOINT, params=params)
+    results = response.json()["items"]
+    st.write("Search Results:")
+    for result in results:
+        st.write(result["title"])
+        st.write(result["link"])
