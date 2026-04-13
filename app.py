@@ -1,68 +1,104 @@
 import streamlit as st
 import pandas as pd
+import json
 from datetime import datetime
+from tavily import TavilyClient
+from groq import Groq
 
 # --- Page Config ---
 st.set_page_config(page_title="AI Real Estate Scout", page_icon="🏢", layout="wide")
 
-# --- Dummy Data (Until we connect the scrapers) ---
-# We will replace this with real AI-extracted JSON data later
-def get_dummy_leads():
-    return pd.DataFrame({
-        "Date": [datetime.now().strftime("%Y-%m-%d")] * 3,
-        "Intent": ["Buy", "Rent", "Lease"],
-        "Property Type": ["3BHK Apartment", "Commercial Office", "2BHK Flat"],
-        "Location": ["SG Highway, Ahmedabad", "GIFT City", "Bopal"],
-        "Budget": ["₹1.2 Cr", "₹50k/month", "₹20k/month"],
-        "Source": ["Reddit (r/ahmedabad)", "Google Search", "Facebook Group"],
-        "Confidence Score": ["95%", "88%", "92%"],
-        "Link": ["https://reddit.com/...", "https://linkedin.com/...", "https://facebook.com/..."]
-    })
+# --- Initialize API Clients Securely ---
+# We use st.secrets instead of local .env files
+try:
+    tavily_client = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
+    groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+    api_status = "🟢 Connected"
+except Exception as e:
+    api_status = "🔴 Missing API Keys"
+
+# --- AI Scout Logic ---
+def run_scout(city, property_type):
+    # 1. Search the web
+    search_query = f'"looking for {property_type}" OR "need to rent {property_type}" {city} (site:linkedin.com OR site:reddit.com)'
+    
+    with st.spinner("Scouting the web..."):
+        search_results = tavily_client.search(query=search_query, search_depth="advanced", max_results=10)
+    
+    raw_content = ""
+    for result in search_results.get('results', []):
+        raw_content += f"URL: {result['url']}\nContent: {result['content']}\n\n"
+
+    # 2. Extract with AI
+    with st.spinner("AI filtering noise and extracting leads..."):
+        system_prompt = """
+        You are an expert real estate lead scout. I will give you raw web search results. 
+        Your job is to identify GENUINE individuals looking to buy, rent, or lease property. 
+        Ignore broker listings, news articles, and spam.
+        
+        Return ONLY a valid JSON array of objects with these keys:
+        "Intent" (Buy/Rent/Lease), "Property Type", "Location", "Budget", "Source_Link", "Confidence_Score".
+        If no valid leads are found, return an empty array: []
+        """
+
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": raw_content}
+            ],
+            model="llama3-8b-8192", 
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+
+        try:
+            response_text = chat_completion.choices[0].message.content
+            parsed_json = json.loads(response_text)
+            
+            # Groq sometimes wraps arrays in a single dictionary key
+            if isinstance(parsed_json, dict) and len(parsed_json.keys()) == 1:
+                key = list(parsed_json.keys())[0]
+                return parsed_json[key]
+            return parsed_json
+        except Exception as e:
+            st.error(f"Failed to parse AI output: {e}")
+            return []
 
 # --- Main UI ---
 st.title("🏢 AI Real Estate Lead Scout")
 st.markdown("Automated web scouting and intent verification for real estate brokers.")
+st.caption(f"System Status: {api_status}")
 
 # --- Sidebar Controls ---
 with st.sidebar:
     st.header("Scout Settings")
     target_city = st.text_input("Target City", value="Ahmedabad")
-    property_type = st.selectbox("Focus Area", ["All", "Residential", "Commercial", "Land"])
+    property_type = st.text_input("Focus Area", value="office space")
     
-    st.divider()
-    st.subheader("Active Modules")
-    st.checkbox("Google Search Agent", value=True)
-    st.checkbox("Reddit Scraper", value=True)
-    st.checkbox("Portal Scraper (99acres/OLX)", value=False, help="Requires stealth proxies")
-    
-    if st.button("🚀 Run AI Scout", type="primary"):
-        st.success("Scouting initiated! (This will trigger our backend scripts soon)")
+    start_scout = st.button("🚀 Run AI Scout", type="primary")
 
-# --- Dashboard Tabs ---
-tab1, tab2, tab3 = st.tabs(["🔥 Hot Leads", "🧠 AI System Logs", "⚙️ Integrations"])
-
-with tab1:
-    st.subheader(f"Recent Verified Leads in {target_city}")
-    leads_df = get_dummy_leads()
-    st.dataframe(
-        leads_df, 
-        use_container_width=True,
-        column_config={
-            "Link": st.column_config.LinkColumn("Source URL")
-        }
-    )
-
-with tab2:
-    st.subheader("Live Agent Activity")
-    st.code("""
-    [10:00:01] System: Initiating search parameters...
-    [10:00:05] Google Agent: Querying 'looking for office space GIFT city linkedin'
-    [10:00:08] AI Filter: Found 12 results. Analyzing intent...
-    [10:00:15] AI Filter: 1 high-intent lead verified. Extracting entities.
-    [10:00:16] System: Lead added to database.
-    """, language="text")
-
-with tab3:
-    st.write("Configure your API keys here.")
-    st.text_input("Groq API Key (For Free LLM)", type="password")
-    st.text_input("Tavily API Key (For Web Search)", type="password")
+# --- Dashboard Logic ---
+if start_scout:
+    if api_status == "🔴 Missing API Keys":
+        st.error("Please add your API keys to Streamlit Secrets first!")
+    else:
+        st.info(f"Initiating search for {property_type} in {target_city}...")
+        
+        # Run our backend function
+        leads = run_scout(target_city, property_type)
+        
+        if leads and len(leads) > 0:
+            st.success(f"Successfully verified {len(leads)} high-intent leads!")
+            # Convert JSON to a clean pandas DataFrame for display
+            df = pd.DataFrame(leads)
+            df.insert(0, "Date Found", datetime.now().strftime("%Y-%m-%d %H:%M"))
+            
+            st.dataframe(
+                df, 
+                use_container_width=True,
+                column_config={
+                    "Source_Link": st.column_config.LinkColumn("View Source")
+                }
+            )
+        else:
+            st.warning("No high-intent leads found right now. Try adjusting your search parameters.")
