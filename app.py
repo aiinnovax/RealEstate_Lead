@@ -6,7 +6,7 @@ from apify_client import ApifyClient
 from groq import Groq
 
 # --- Page Config ---
-st.set_page_config(page_title="AI Real Estate Scout", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="99acres Lead Scout", page_icon="🏢", layout="wide")
 
 # --- Security Gate ---
 def check_password():
@@ -35,21 +35,47 @@ if not check_password():
 try:
     apify_client = ApifyClient(st.secrets["APIFY_API_TOKEN"])
     groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    api_status = "🟢 System Ready"
+    api_status = "🟢 Connected"
 except Exception as e:
     api_status = "🔴 Missing API Keys"
 
+# --- AI Extraction Helper ---
+def extract_leads_with_ai(raw_content, city):
+    system_prompt = f"""
+    You are a Real Estate Intelligence Expert. Parse the provided property listing data from 99acres.
+    TASK: 
+    1. Identify GENUINE property leads in {city}. 
+    2. IGNORE all commercial ads or duplicate broker listings.
+    3. Extract: Name, Phone, Intent (Buy/Rent), Requirement_Details, Budget, Source_Link.
+    
+    Return a JSON object with a 'leads' key containing an array of objects.
+    """
+    try:
+        chat_completion = groq_client.chat.completions.create(
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": raw_content}],
+            model="llama-3.1-8b-instant", 
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+        return json.loads(chat_completion.choices[0].message.content).get("leads", [])
+    except:
+        return []
+
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
-    with st.spinner(f"Force-scanning 99acres listings in {city}..."):
-        # We are changing the URL to a standard search result page
-        # This page is more likely to give the scraper raw data
-        formatted_city = city.lower().replace(" ", "-")
-        target_url = f"https://www.99acres.com/{property_type.replace(' ', '-')}-in-{formatted_city}-ffid"
+    with st.spinner(f"Initiating direct 99acres scan for {property_type}..."):
+        # The actor fatihtahta/99acres-scraper uses 'startUrls' (array of objects) 
+        # or 'locations' (array of strings).
         
+        # We target the specific search URL for the city
+        formatted_city = city.lower().replace(" ", "-")
+        target_url = f"https://www.99acres.com/search/property/buy/{formatted_city}"
+        
+        # OFFICIAL INPUT SCHEMA for fatihtahta/99acres-scraper
         run_input = {
-            "direct_search_urls": [target_url],
-            "directSearchUrls": [target_url],
+            "startUrls": [{"url": target_url}],
+            "locations": [city],
+            "propertyType": "buy",
             "maxItems": 10
         }
         
@@ -62,71 +88,47 @@ def run_scout(city, property_type):
                 raw_data.append(item)
             
             if not raw_data:
-                # DEBUG: If no data, let's see why
-                st.write("🔍 Apify ran, but 99acres returned 0 results for this URL.")
                 return []
                 
-            return extract_leads_with_ai(json.dumps(raw_data)[:50000], city)
+            raw_content = json.dumps(raw_data)[:45000]
+            return extract_leads_with_ai(raw_content, city)
                 
         except Exception as e:
             st.error(f"Apify System Error: {str(e)}")
-            return []
-            
-            # Convert the deep data to string for the AI to analyze
-            raw_content = json.dumps(raw_data)[:50000]
-                
-        except Exception as e:
-            st.error(f"Apify System Error: {str(e)}")
-            return []
-
-    # 2. Extract with Groq AI (The Brain)
-    with st.spinner("AI Brain extracting high-quality leads..."):
-        system_prompt = f"""
-        You are a Real Estate Analyst. Analyze the 99acres JSON data.
-        1. Identify GENUINE buyer/renter requirements.
-        2. Filter out all Company/Broker listings.
-        3. Extract: Name, Phone (if present), Requirement (e.g. 2BHK/Office), Budget, and Source_Link.
-        Return ONLY a JSON object with a 'leads' key.
-        """
-        try:
-            chat_completion = groq_client.chat.completions.create(
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": raw_content}],
-                model="llama-3.1-8b-instant", 
-                temperature=0.1,
-                response_format={"type": "json_object"}
-            )
-            return json.loads(chat_completion.choices[0].message.content).get("leads", [])
-        except:
             return []
 
 # --- Main UI ---
 st.title("🏢 99acres AI Lead Scout")
-st.caption(f"Status: {api_status} | Target: Pure 99acres Data")
+st.caption(f"Status: {api_status} | Mode: Dedicated 99acres API")
 
 with st.sidebar:
     st.header("Search Parameters")
-    city_input = st.text_input("Target City", value="Ahmedabad")
+    city_input = st.text_input("City", value="Ahmedabad")
     p_type = st.text_input("Property Type", value="office space")
-    run_btn = st.button("🚀 Scrape 99acres", type="primary")
+    run_btn = st.button("🚀 Find Leads", type="primary")
 
 if "leads" not in st.session_state:
     st.session_state.leads = []
 
 if run_btn:
+    # Clear session memory for a fresh search
+    st.session_state.leads = []
     results = run_scout(city_input, p_type)
     if results:
         for r in results:
-            r["Date_Found"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            r["Date"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             st.session_state.leads.append(r)
-        st.success(f"Verified {len(results)} leads from 99acres!")
+        st.success(f"Successfully processed {len(results)} potential records!")
     else:
-        st.warning("No unmasked leads found. Verify your Apify Actor rental is active.")
+        st.warning("No leads found. Check your Apify 'Runs' tab to ensure the Actor is active.")
 
 # --- Results Table ---
 if st.session_state.leads:
+    st.divider()
     df = pd.DataFrame(st.session_state.leads)
     if "Source_Link" in df.columns:
         df = df.drop_duplicates(subset=['Source_Link'])
+    
     st.dataframe(df, use_container_width=True)
     
     csv_data = df.to_csv(index=False).encode('utf-8')
