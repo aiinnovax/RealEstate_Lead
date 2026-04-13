@@ -1,0 +1,240 @@
+
+[     UTC     ] Logs for my-ai-agent-2u5qcgl4ktvacshmcvw4vf.streamlit.app/
+────────────────────────────────────────────────────────────────────────────────────────
+[07:32:10] 🖥 Provisioning machine...
+[07:32:10] 🎛 Preparing system...
+[07:32:10] ⛓ Spinning up manager process...
+[07:32:07] 🚀 Starting up repository: 'my-ai-agent', branch: 'main', main module: 'app.py'
+[07:32:07] 🐙 Cloning repository...
+[07:32:07] 🐙 Cloning into '/mount/src/my-ai-agent'...
+
+[07:32:07] 🐙 Cloned repository!
+[07:32:07] 🐙 Pulling code changes from Github...
+[07:32:08] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.11.15 environment at /home/adminuser/venv
+Resolved 80 packages in 765ms
+Prepared 80 packages in 19.31s
+Uninstalled 1 package in 49ms
+Installed 80 packages in 628ms
+ + altair==6.0.0
+ + annotated-doc==0.0.4
+ + anyio==4.13.0
+ + attrs==26.1.0
+ + blinker==1.9.0
+ + cachetools==7.0.5
+ + certifi==2026.2.25[2026-04-12 07:32:29.080752] 
+ + charset-normalizer==3.4.7
+ + click==8.3.2
+ + cuda-bindings==13.2.0
+ + [2026-04-12 07:32:29.080915] cuda-pathfinder==1.5.2
+ + cuda-toolkit==13.0.2
+ + filelock==3.25.2
+ + fsspec==2026.3.0
+ + gitdb[2026-04-12 07:32:29.081104] ==4.0.12
+ + gitpython==3.1.46
+ + h11==0.16.0
+ + hf-xet==1.4.3
+ + [2026-04-12 07:32:29.081266] httpcore==1.0.9
+ + httpx==0.28.1[2026-04-12 07:32:29.081379] 
+ + huggingface-hub==1.10.1
+ + idna==3.11
+ + jinja2[2026-04-12 07:32:29.081512] ==3.1.6
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markdown-it-py==4.0.0[2026-04-12 07:32:29.081639] 
+ + markupsafe==3.0.3
+ + mdurl==0.1.2
+ + mpmath==1.3.0
+ + narwhals==2.19.0
+ + networkx[2026-04-12 07:32:29.081757] ==3.6.1
+ + numpy==2.4.4
+ + nvidia-cublas==13.1.0.3
+ + nvidia-cuda-cupti==13.0.85
+ + nvidia-cuda-nvrtc==13.0.88
+ [2026-04-12 07:32:29.081958] + nvidia-cuda-runtime==13.0.96
+ + nvidia-cudnn-cu13==9.19.0.56
+ + nvidia-cufft==12.0.0.61
+ + nvidia-cufile==1.15.1.6
+ + nvidia-curand==10.4.0.35
+ + nvidia-cusolver==12.0.4.66
+ + nvidia-cusparse==12.6.3.3
+ + nvidia-cusparselt-cu13==0.8.0
+ + nvidia-nccl-cu13==2.28.9[2026-04-12 07:32:29.082329] 
+ + nvidia-nvjitlink==13.0.88
+ + nvidia-nvshmem-cu13==3.4.5
+ + nvidia-nvtx==13.0.85[2026-04-12 07:32:29.082459] 
+ + packaging==26.0
+ + pandas==3.0.2
+ + pillow==[2026-04-12 07:32:29.082578] 12.2.0
+ + protobuf==7.34.1
+ + pyarrow==23.0.1
+ + pydeck[2026-04-12 07:32:29.082666] ==0.9.1
+ + pygments==2.20.0
+ + python-dateutil==2.9.0.post0
+ [2026-04-12 07:32:29.082800] + pyyaml==6.0.3
+ + referencing==0.37.0
+ + regex==2026.4.4[2026-04-12 07:32:29.082896] 
+ + requests==2.33.1
+ + rich==14.3.4
+ + rpds-py[2026-04-12 07:32:29.082962] ==0.30.0
+ + safetensors==0.7.0
+ - setuptools==82.0.0[2026-04-12 07:32:29.083029] 
+ + setuptools==81.0.0
+ + shellingham==1.5.4
+ + six[2026-04-12 07:32:29.083091] ==1.17.0
+ + smmap==5.0.3
+ + streamlit==1.56.0
+ + sympy==1.14.0
+ + tenacity==9.1.4
+ + tokenizers==0.22.2
+ + toml==0.10.2
+ + torch[2026-04-12 07:32:29.083212] ==2.11.0
+ + tornado==6.5.5
+ + tqdm==4.67.3
+ + transformers==5.5.3
+ + triton[2026-04-12 07:32:29.083286] ==3.6.0
+ + typer==0.24.1
+ + typing-extensions==4.15.0[2026-04-12 07:32:29.083359] 
+ + urllib3==2.6.3
+ + watchdog==6.0.0
+Checking if Streamlit is installed
+Found Streamlit version 1.56.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.11.15 environment at /home/adminuser/venv
+Audited 1 package in 4ms
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[07:32:31] 🐍 Python dependencies were installed from /mount/src/my-ai-agent/requirements.txt using uv.
+Check if streamlit is installed
+Streamlit is already installed
+[07:32:32] 📦 Processed dependencies!
+
+
+
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s][2026-04-12 07:32:53.275172] 
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s][A
+[07:34:18] 🖥 Provisioning machine...
+[07:34:23] 🎛 Preparing system...
+[07:34:21] 🚀 Starting up repository: 'my-ai-agent', branch: 'main', main module: 'app.py'
+[07:34:21] 🐙 Cloning repository...
+[07:34:21] 🐙 Cloning into '/mount/src/my-ai-agent'...
+
+[07:34:21] 🐙 Cloned repository!
+[07:34:21] 🐙 Pulling code changes from Github...
+[07:34:22] 📦 Processing dependencies...
+
+──────────────────────────────────────── uv ───────────────────────────────────────────
+
+Using uv pip install.
+Using Python 3.11.15 environment at /home/adminuser/venv
+Resolved 80 packages in 762ms
+[07:34:24] ⛓ Spinning up manager process...
+Prepared 80 packages in 21.49s
+Uninstalled 1 package in 50ms
+Installed 80 packages in 563ms
+ + altair==6.0.0
+ + annotated-doc==0.0.4
+ + anyio==4.13.0
+ + attrs==26.1.0
+ + blinker==1.9.0
+ + cachetools==7.0.5
+ + certifi==2026.2.25
+ + charset-normalizer==3.4.7
+ + click==8.3.2
+ + cuda-bindings==13.2.0
+ + cuda-pathfinder==1.5.2
+ + cuda-toolkit==[2026-04-12 07:34:45.166486] 13.0.2
+ + filelock==3.25.2
+ + fsspec==2026.3.0
+ + gitdb==4.0.12
+ + gitpython==3.1.46
+ + h11==0.16.0
+ + hf-xet==1.4.3
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + huggingface-hub==1.10.1
+ + idna==[2026-04-12 07:34:45.166698] 3.11
+ + jinja2==3.1.6
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + markdown-it-py==4.0.0
+ + markupsafe==3.0.3
+ + mdurl==0.1.2
+ + mpmath==1.3.0
+ + narwhals[2026-04-12 07:34:45.166956] ==2.19.0
+ + networkx==3.6.1
+ + numpy==2.4.4
+ + nvidia-cublas==13.1.0.3
+ + nvidia-cuda-cupti==13.0.85
+ + nvidia-cuda-nvrtc[2026-04-12 07:34:45.167219] ==13.0.88
+ + nvidia-cuda-runtime==13.0.96
+ + nvidia-cudnn-cu13==9.19.0.56
+ + nvidia-cufft==12.0.0.61
+ + nvidia-cufile==1.15.1.6[2026-04-12 07:34:45.167416] 
+ + nvidia-curand==10.4.0.35
+ + nvidia-cusolver==12.0.4.66
+ + nvidia-cusparse==12.6.3.3
+ + nvidia-cusparselt-cu13==0.8.0
+ + nvidia-nccl-cu13==2.28.9[2026-04-12 07:34:45.167605] 
+ + nvidia-nvjitlink==13.0.88
+ + nvidia-nvshmem-cu13==3.4.5
+ + nvidia-nvtx==13.0.85
+ + packaging==26.0
+ + pandas==3.0.2
+ + pillow==12.2.0
+ + protobuf==7.34.1
+ + pyarrow==23.0.1
+ + pydeck==0.9.1
+ + pygments==2.20.0
+ + python-dateutil==2.9.0.post0
+ + pyyaml==6.0.3
+ + referencing==0.37.0
+ + regex==2026.4.4
+ + requests==2.33.1
+ + rich==14.3.4
+ + rpds-py==0.30.0
+ [2026-04-12 07:34:45.168159] + safetensors==0.7.0
+ - setuptools==82.0.0
+ + setuptools==81.0.0
+ + [2026-04-12 07:34:45.168265] shellingham==1.5.4
+ + six==1.17.0
+ + smmap==5.0.3
+ + streamlit==1.56.0
+ + [2026-04-12 07:34:45.168372] sympy==1.14.0
+ + tenacity==9.1.4
+ + tokenizers==0.22.2
+ + toml==0.10.2
+ +[2026-04-12 07:34:45.168487]  torch==2.11.0
+ + tornado==6.5.5
+ + tqdm==4.67.3
+ + transformers==5.5.3
+ + [2026-04-12 07:34:45.168588] triton==3.6.0
+ + typer==0.24.1
+ + typing-extensions==4.15.0
+ + urllib3==2.6.3
+ + [2026-04-12 07:34:45.168733] watchdog==6.0.0
+Checking if Streamlit is installed
+Found Streamlit version 1.56.0 in the environment
+Installing rich for an improved exception logging
+Using uv pip install.
+Using Python 3.11.15 environment at /home/adminuser/venv
+Audited 1 package in 4ms
+
+────────────────────────────────────────────────────────────────────────────────────────
+
+[07:34:47] 🐍 Python dependencies were installed from /mount/src/my-ai-agent/requirements.txt using uv.
+Check if streamlit is installed
+Streamlit is already installed
+[07:34:48] 📦 Processed dependencies!
+
+
+
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]
