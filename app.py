@@ -6,7 +6,7 @@ from apify_client import ApifyClient
 from groq import Groq
 
 # --- Page Config ---
-st.set_page_config(page_title="99acres Lead Scout", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="99acres AI Lead Scout", page_icon="🏢", layout="wide")
 
 # --- Security Gate ---
 def check_password():
@@ -35,20 +35,18 @@ if not check_password():
 try:
     apify_client = ApifyClient(st.secrets["APIFY_API_TOKEN"])
     groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    api_status = "🟢 Connected"
+    api_status = "🟢 System Connected"
 except Exception as e:
     api_status = "🔴 Missing API Keys"
 
 # --- AI Extraction Helper ---
 def extract_leads_with_ai(raw_content, city):
     system_prompt = f"""
-    You are a Real Estate Intelligence Expert. Parse the provided property listing data from 99acres.
-    TASK: 
-    1. Identify GENUINE property leads in {city}. 
-    2. IGNORE all commercial ads or duplicate broker listings.
-    3. Extract: Name, Phone, Intent (Buy/Rent), Requirement_Details, Budget, Source_Link.
-    
-    Return a JSON object with a 'leads' key containing an array of objects.
+    You are a Real Estate Intelligence Expert. 
+    Analyze the 99acres JSON data for {city}.
+    1. Extract leads who want to buy or rent.
+    2. REJECT all listings from 'Brokers' or 'Agents' if possible.
+    3. Output JSON with a 'leads' key. Columns: Name, Phone, Intent, Requirement, Budget, Source_Link.
     """
     try:
         chat_completion = groq_client.chat.completions.create(
@@ -63,17 +61,15 @@ def extract_leads_with_ai(raw_content, city):
 
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
-    with st.spinner(f"Initiating direct 99acres scan for {property_type}..."):
-        # The actor fatihtahta/99acres-scraper uses 'startUrls' (array of objects) 
-        # or 'locations' (array of strings).
-        
-        # We target the specific search URL for the city
+    with st.spinner(f"Requesting direct 99acres data for {city}..."):
+        # BUILD THE URL: Simplified format to ensure the scraper accepts it
         formatted_city = city.lower().replace(" ", "-")
         target_url = f"https://www.99acres.com/search/property/buy/{formatted_city}"
         
-        # OFFICIAL INPUT SCHEMA for fatihtahta/99acres-scraper
+        # VERIFIED SCHEMA: fatihtahta/99acres-scraper
+        # 'startUrls' must be a list of strings for the Python client.
         run_input = {
-            "startUrls": [{"url": target_url}],
+            "startUrls": [target_url],
             "locations": [city],
             "propertyType": "buy",
             "maxItems": 10
@@ -87,49 +83,44 @@ def run_scout(city, property_type):
             for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
                 raw_data.append(item)
             
+            # CRITICAL DEBUG: Check if data actually came back
             if not raw_data:
+                st.error("⚠️ The 99acres Scraper returned 0 results. Check your Apify 'Runs' log for a '403 Forbidden' or 'Blocked' error.")
                 return []
                 
-            raw_content = json.dumps(raw_data)[:45000]
-            return extract_leads_with_ai(raw_content, city)
+            return extract_leads_with_ai(json.dumps(raw_data)[:40000], city)
                 
         except Exception as e:
-            st.error(f"Apify System Error: {str(e)}")
+            st.error(f"Apify Connection Error: {str(e)}")
             return []
 
 # --- Main UI ---
 st.title("🏢 99acres AI Lead Scout")
-st.caption(f"Status: {api_status} | Mode: Dedicated 99acres API")
+st.caption(f"Status: {api_status} | Target: Dedicated 99acres Scraper")
 
 with st.sidebar:
     st.header("Search Parameters")
-    city_input = st.text_input("City", value="Ahmedabad")
+    city_input = st.text_input("Target City", value="Ahmedabad")
     p_type = st.text_input("Property Type", value="office space")
-    run_btn = st.button("🚀 Find Leads", type="primary")
+    run_btn = st.button("🚀 Scrape 99acres", type="primary")
 
 if "leads" not in st.session_state:
     st.session_state.leads = []
 
 if run_btn:
-    # Clear session memory for a fresh search
-    st.session_state.leads = []
+    st.session_state.leads = [] # Clear memory
     results = run_scout(city_input, p_type)
     if results:
         for r in results:
-            r["Date"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            r["Date_Found"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             st.session_state.leads.append(r)
-        st.success(f"Successfully processed {len(results)} potential records!")
+        st.success(f"Found {len(results)} potential leads!")
     else:
-        st.warning("No leads found. Check your Apify 'Runs' tab to ensure the Actor is active.")
+        st.info("Scan completed with 0 leads. Check Apify for bot-detection blocks.")
 
 # --- Results Table ---
 if st.session_state.leads:
-    st.divider()
     df = pd.DataFrame(st.session_state.leads)
-    if "Source_Link" in df.columns:
-        df = df.drop_duplicates(subset=['Source_Link'])
-    
     st.dataframe(df, use_container_width=True)
-    
     csv_data = df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download CSV", data=csv_data, file_name="99acres_leads.csv", mime="text/csv")
