@@ -30,13 +30,11 @@ def check_password():
     else:
         return True
 
-# Stop the app from running the rest of the code if the password is wrong
 if not check_password():
     st.stop()
 
 # --- Initialize API Clients Securely ---
 try:
-    # Notice we are now using Apify instead of Tavily
     apify_client = ApifyClient(st.secrets["APIFY_API_TOKEN"])
     groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     api_status = "🟢 Apify & Groq Connected"
@@ -45,51 +43,51 @@ except Exception as e:
 
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
-    # 1. The Bloodhound Query (Hunting for +91 and contact words on open platforms)
-    search_query = f'("looking for {property_type}" OR "need {property_type}") {city} ("+91" OR "whatsapp" OR "contact me" OR "call me") (site:facebook.com OR site:sulekha.com OR site:locanto.net OR site:quikr.com) -broker -agent'
-    
-    with st.spinner("Apify Cloud Browser spinning up... (This takes 15-30 seconds)..."):
+    with st.spinner("Apify Cloud Browser attacking 99acres... (Please wait)..."):
+        # We construct a generic 99acres search URL based on your city
+        target_url = f"https://www.99acres.com/search/property/buy/{city.lower()}"
+        
+        # 1. APIFY INPUT: Hard-capped to 10 to protect your free credits
         run_input = {
-            "queries": search_query,
-            "resultsPerPage": 15,
-            "maxPagesPerQuery": 1,
-            "languageCode": "en",
-            "countryCode": "in" # Target India specifically
+            "startUrls": [{"url": target_url}],
+            "maxItems": 10,  # Strict Daily/Run Limit
+            "keyword": property_type
         }
         
         try:
-            # Calling the FREE Apify Google Search Scraper
-            run = apify_client.actor("apify/google-search-scraper").call(run_input=run_input)
+            # ---> IMPORTANT: REPLACE THIS STRING WITH THE EXACT APIFY ACTOR ID <---
+            # Example: "developer-name/99acres-scraper"
+            actor_id = "YOUR_ACTOR_ID_HERE" 
+            
+            run = apify_client.actor(actor_id).call(run_input=run_input)
             
             raw_content = ""
             for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
-                organic_results = item.get("organicResults", [])
-                for result in organic_results:
-                    raw_content += f"URL: {result.get('url', '')}\nText: {result.get('title', '')} {result.get('description', '')}\n\n"
+                raw_content += json.dumps(item) + "\n\n"
+                
         except Exception as e:
-            st.error(f"Apify Scraping Error: {e}")
+            st.error(f"Apify Scraping Error. Did you insert the correct Actor ID? Details: {e}")
             return []
 
-    # DEFENSIVE CHECK
     if not raw_content.strip():
         return []
     raw_content = raw_content[:40000]
 
     # 2. Extract with Groq AI
-    with st.spinner("Groq AI extracting contact info..."):
+    with st.spinner("Groq AI processing 99acres JSON data..."):
         system_prompt = """
-        You are an elite real estate lead data extractor. I will give you raw web search results. 
-        Your ONLY mission is to find GENUINE individuals looking to buy, rent, or lease property and extract their contact details.
+        You are an elite real estate lead data extractor. I will give you raw JSON output directly from a 99acres web scraper.
+        Your ONLY mission is to parse this data, find GENUINE individuals looking to buy/rent/lease, and extract their details.
         
         CRITICAL RULES:
-        1. REJECT BROKERS: If the text sounds like an agent offering a property, ignore it completely.
-        2. EXTRACT CONTACTS: You must aggressively scan for phone numbers (especially Indian +91 formats), WhatsApp numbers, or emails.
-        3. EXTRACT REQUIREMENTS: Summarize exactly what they want (e.g., "3BHK, unfurnished, family").
+        1. REJECT BROKERS: If the 'poster type' or description indicates a broker/agent, ignore it entirely.
+        2. EXTRACT CONTACTS: Look carefully for unmasked phone numbers, +91 formats, or emails in descriptions or contact fields.
+        3. EXTRACT REQUIREMENTS: Summarize exactly what they want based on the property description.
         
         Return ONLY a valid JSON array of objects with these exact keys:
         "Name" (or "Unknown"),
-        "Phone" (Extract the exact number if found, otherwise "Not Found"),
-        "Email" (Extract if found, otherwise "Not Found"),
+        "Phone" (Extract if available, otherwise "Hidden by 99acres"),
+        "Email" (Extract if available, otherwise "Not Found"),
         "Intent" (Buy/Rent/Lease), 
         "Requirement_Details", 
         "Location", 
@@ -124,8 +122,8 @@ def run_scout(city, property_type):
 
 # --- Main UI ---
 st.title("🏢 AI Real Estate Lead Scout")
-st.markdown("Automated web scouting and intent verification for real estate brokers.")
-st.caption(f"System Status: {api_status}")
+st.markdown("Automated 99acres web scouting and intent verification for real estate brokers.")
+st.caption(f"System Status: {api_status} | Limit: 10 Leads/Run")
 
 # --- Sidebar Controls ---
 with st.sidebar:
@@ -137,42 +135,38 @@ with st.sidebar:
 
 # --- Dashboard Logic ---
 
-# 1. Initialize Memory (Session State)
 if "lead_database" not in st.session_state:
     st.session_state.lead_database = []
 
 if start_scout:
     if api_status == "🔴 Missing API Keys":
         st.error("Please add your API keys to Streamlit Secrets first!")
+    elif "YOUR_ACTOR_ID_HERE" in open(__file__).read():
+         st.error("Wait! You need to update the Apify Actor ID in the app.py code on GitHub before running.")
     else:
-        st.info(f"Initiating search for {property_type} in {target_city}...")
+        st.info(f"Initiating search for {property_type} in {target_city} (Max 10 results)...")
         
-        # Run our backend function
         new_leads = run_scout(target_city, property_type)
         
         if new_leads and len(new_leads) > 0:
-            st.success(f"Successfully verified {len(new_leads)} high-intent leads!")
+            st.success(f"Successfully pulled {len(new_leads)} records from 99acres!")
             
-            # Add timestamps and append to our session memory
             for lead in new_leads:
                 lead["Date_Found"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 st.session_state.lead_database.append(lead)
         else:
-            st.warning("No new high-intent leads found right now. Try adjusting your search parameters.")
+            st.warning("No unmasked leads found. Try adjusting your search parameters.")
 
-# 2. Display the Database
+# --- Display the Database ---
 if len(st.session_state.lead_database) > 0:
     st.divider()
     st.subheader(f"📂 Lead Database ({len(st.session_state.lead_database)} Total)")
     
-    # Convert memory to a DataFrame
     df = pd.DataFrame(st.session_state.lead_database)
     
-    # Clean up: Remove duplicates if the AI scraped the same link twice
     if "Source_Link" in df.columns:
         df = df.drop_duplicates(subset=['Source_Link'])
     
-    # Reorder columns to put Date first
     cols = ['Date_Found'] + [col for col in df.columns if col != 'Date_Found']
     df = df[cols]
     
@@ -184,25 +178,22 @@ if len(st.session_state.lead_database) > 0:
         }
     )
     
-    # 3. The Export Button
     csv_data = df.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="📥 Download Leads as CSV",
         data=csv_data,
-        file_name=f"Real_Estate_Leads_{target_city}_{datetime.now().strftime('%Y%m%d')}.csv",
+        file_name=f"99acres_Leads_{target_city}_{datetime.now().strftime('%Y%m%d')}.csv",
         mime="text/csv",
         type="primary"
     )
 
-    # --- 4. AI Outreach Assistant ---
+    # --- AI Outreach Assistant ---
     st.divider()
     st.subheader("💬 AI Outreach Assistant")
     st.markdown("Select a lead below to instantly generate a personalized, high-converting outreach message.")
 
-    # Create a clean list of options for the dropdown using the NEW data keys
     lead_options = [f"{lead.get('Intent', 'Lead')} - {lead.get('Requirement_Details', 'Property')} in {lead.get('Location', 'Unknown')} (Phone: {lead.get('Phone', 'N/A')})" for lead in st.session_state.lead_database]
     
-    # Dropdown to select a specific lead
     selected_lead_idx = st.selectbox("Select a Lead to Pitch:", range(len(lead_options)), format_func=lambda x: lead_options[x])
 
     if st.button("✨ Draft Personalized Pitch"):
@@ -210,7 +201,7 @@ if len(st.session_state.lead_database) > 0:
 
         with st.spinner("Writing the perfect message..."):
             draft_prompt = f"""
-            You are a highly successful, approachable real estate broker making first contact on WhatsApp, LinkedIn, or Email.
+            You are a highly successful, approachable real estate broker making first contact.
             Write a short, casual, and highly converting direct message for a prospect.
             
             Prospect details:
@@ -222,13 +213,12 @@ if len(st.session_state.lead_database) > 0:
             
             CRITICAL RULES:
             1. Keep it under 4 sentences. Short and punchy.
-            2. Do not sound like a corporate robot or a desperate salesperson. Sound human, local to {target_city}, and helpful.
-            3. Include a clear, low-pressure call to action (e.g., asking if they want you to send over a few off-market options that fit their criteria).
-            4. Leave placeholders like [Your Name]. If the prospect name is 'Unknown', start with a friendly generic greeting.
+            2. Do not sound like a corporate robot. Sound human, local to {target_city}, and helpful.
+            3. Include a clear call to action.
+            4. Leave placeholders like [Your Name].
             """
 
             try:
-                # We use a slightly higher temperature (0.7) here so the AI is more creative and conversational
                 pitch_completion = groq_client.chat.completions.create(
                     messages=[{"role": "user", "content": draft_prompt}],
                     model="llama-3.1-8b-instant",
