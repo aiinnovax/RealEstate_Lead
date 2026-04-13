@@ -8,6 +8,45 @@ from groq import Groq
 # --- Page Config ---
 st.set_page_config(page_title="AI Real Estate Scout", page_icon="🏢", layout="wide")
 
+# --- Security Gate ---
+def check_password():
+    """Returns `True` if the user has the correct password."""
+    def password_entered():
+        if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # don't store password in memory
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.markdown("## 🔒 Private Access Only")
+        st.text_input("Enter App Password", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.markdown("## 🔒 Private Access Only")
+        st.text_input("Enter App Password", type="password", on_change=password_entered, key="password")
+        st.error("😕 Incorrect Password. Try again.")
+        return False
+    else:
+        return True
+
+# Stop the app from running the rest of the code if the password is wrong
+if not check_password():
+    st.stop()
+
+# --- Initialize API Clients Securely ---
+try:
+    tavily_client = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
+    groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+    api_status = "🟢 Connected"
+except Exception as e:
+    api_status = "🔴 Missing API Keys"
+
+# ... [The rest of your run_scout function and dashboard code stays exactly the same below here] ...
+
+# --- Page Config ---
+st.set_page_config(page_title="AI Real Estate Scout", page_icon="🏢", layout="wide")
+
 # --- Initialize API Clients Securely ---
 # We use st.secrets instead of local .env files
 try:
