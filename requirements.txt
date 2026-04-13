@@ -1,9 +1,0 @@
-beautifulsoup4
-scrapy
-google-api-python-client
-facebook-sdk
-twitter-api
-linkedin-api
-pandas
-scikit-learn
-streamlit
