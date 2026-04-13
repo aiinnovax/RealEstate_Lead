@@ -88,6 +88,11 @@ with st.sidebar:
     start_scout = st.button("🚀 Run AI Scout", type="primary")
 
 # --- Dashboard Logic ---
+
+# 1. Initialize Memory (Session State)
+if "lead_database" not in st.session_state:
+    st.session_state.lead_database = []
+
 if start_scout:
     if api_status == "🔴 Missing API Keys":
         st.error("Please add your API keys to Streamlit Secrets first!")
@@ -95,20 +100,48 @@ if start_scout:
         st.info(f"Initiating search for {property_type} in {target_city}...")
         
         # Run our backend function
-        leads = run_scout(target_city, property_type)
+        new_leads = run_scout(target_city, property_type)
         
-        if leads and len(leads) > 0:
-            st.success(f"Successfully verified {len(leads)} high-intent leads!")
-            # Convert JSON to a clean pandas DataFrame for display
-            df = pd.DataFrame(leads)
-            df.insert(0, "Date Found", datetime.now().strftime("%Y-%m-%d %H:%M"))
+        if new_leads and len(new_leads) > 0:
+            st.success(f"Successfully verified {len(new_leads)} high-intent leads!")
             
-            st.dataframe(
-                df, 
-                use_container_width=True,
-                column_config={
-                    "Source_Link": st.column_config.LinkColumn("View Source")
-                }
-            )
+            # Add timestamps and append to our session memory
+            for lead in new_leads:
+                lead["Date_Found"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                st.session_state.lead_database.append(lead)
         else:
-            st.warning("No high-intent leads found right now. Try adjusting your search parameters.")
+            st.warning("No new high-intent leads found right now. Try adjusting your search parameters.")
+
+# 2. Display the Database
+if len(st.session_state.lead_database) > 0:
+    st.divider()
+    st.subheader(f"📂 Lead Database ({len(st.session_state.lead_database)} Total)")
+    
+    # Convert memory to a DataFrame
+    df = pd.DataFrame(st.session_state.lead_database)
+    
+    # Clean up: Remove duplicates if the AI scraped the same link twice
+    if "Source_Link" in df.columns:
+        df = df.drop_duplicates(subset=['Source_Link'])
+    
+    # Reorder columns to put Date first
+    cols = ['Date_Found'] + [col for col in df.columns if col != 'Date_Found']
+    df = df[cols]
+    
+    st.dataframe(
+        df, 
+        use_container_width=True,
+        column_config={
+            "Source_Link": st.column_config.LinkColumn("View Source")
+        }
+    )
+    
+    # 3. The Export Button
+    csv_data = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Leads as CSV",
+        data=csv_data,
+        file_name=f"Real_Estate_Leads_{target_city}_{datetime.now().strftime('%Y%m%d')}.csv",
+        mime="text/csv",
+        type="primary"
+    )
