@@ -2,3 +2,4 @@ streamlit
 pandas
 tavily-python
 groq
+apify-client
