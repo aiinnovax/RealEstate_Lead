@@ -23,11 +23,19 @@ def run_scout(city, property_type):
     search_query = f'"looking for {property_type}" OR "need to rent {property_type}" {city} (site:linkedin.com OR site:reddit.com)'
     
     with st.spinner("Scouting the web..."):
-        search_results = tavily_client.search(query=search_query, search_depth="advanced", max_results=10)
+        # Reduced max_results to 5 to keep the data cleaner and faster
+        search_results = tavily_client.search(query=search_query, search_depth="advanced", max_results=5)
     
     raw_content = ""
     for result in search_results.get('results', []):
         raw_content += f"URL: {result['url']}\nContent: {result['content']}\n\n"
+
+    # DEFENSIVE CHECK: Make sure we actually found something
+    if not raw_content.strip():
+        return []
+
+    # DEFENSIVE TRUNCATION: Hard cap the text at ~40,000 characters just to be safe
+    raw_content = raw_content[:40000]
 
     # 2. Extract with AI
     with st.spinner("AI filtering noise and extracting leads..."):
@@ -41,17 +49,18 @@ def run_scout(city, property_type):
         If no valid leads are found, return an empty array: []
         """
 
-        chat_completion = groq_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": raw_content}
-            ],
-            model="llama3-8b-8192", 
-            temperature=0.1,
-            response_format={"type": "json_object"}
-        )
-
         try:
+            chat_completion = groq_client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": raw_content}
+                ],
+                # UPGRADED MODEL: Llama 3.1 has a 128,000 token limit!
+                model="llama-3.1-8b-instant", 
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+
             response_text = chat_completion.choices[0].message.content
             parsed_json = json.loads(response_text)
             
@@ -60,8 +69,9 @@ def run_scout(city, property_type):
                 key = list(parsed_json.keys())[0]
                 return parsed_json[key]
             return parsed_json
+            
         except Exception as e:
-            st.error(f"Failed to parse AI output: {e}")
+            st.error(f"AI Extraction Error: {e}")
             return []
 
 # --- Main UI ---
