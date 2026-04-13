@@ -59,7 +59,7 @@ except Exception as e:
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
     # 1. Search the web (UPDATED QUERY: Strict filtering to avoid broker profiles)
-    search_query = f'("looking for {property_type}" OR "need {property_type}") {city} -broker -agent -realtor (site:reddit.com OR site:linkedin.com/posts/ OR site:linkedin.com/feed/update/)'
+    search_query = f'("looking for {property_type}" OR "need {property_type}") {city} ("+91" OR "whatsapp" OR "contact me" OR "call me") (site:facebook.com OR site:sulekha.com OR site:locanto.net OR site:quikr.com) -broker -agent'
     
     with st.spinner("Scouting the web..."):
         # Reduced max_results to 5 to keep the data cleaner and faster
