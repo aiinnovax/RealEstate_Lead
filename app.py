@@ -1,3 +1,5 @@
+import os
+st.write(os.listdir())
 import streamlit as st
 from crew import run_agents
 
