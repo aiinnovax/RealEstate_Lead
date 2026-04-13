@@ -3,7 +3,6 @@ import pandas as pd
 import json
 from datetime import datetime
 from apify_client import ApifyClient
-from tavily import TavilyClient
 from groq import Groq
 
 # --- Page Config ---
@@ -37,48 +36,47 @@ if not check_password():
 
 # --- Initialize API Clients Securely ---
 try:
-    tavily_client = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
+    # Notice we are now using Apify instead of Tavily
+    apify_client = ApifyClient(st.secrets["APIFY_API_TOKEN"])
     groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    api_status = "🟢 Connected"
-except Exception as e:
-    api_status = "🔴 Missing API Keys"
-
-# ... [The rest of your run_scout function and dashboard code stays exactly the same below here] ...
-
-# --- Page Config ---
-st.set_page_config(page_title="AI Real Estate Scout", page_icon="🏢", layout="wide")
-
-# --- Initialize API Clients Securely ---
-# We use st.secrets instead of local .env files
-try:
-    tavily_client = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
-    groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    api_status = "🟢 Connected"
+    api_status = "🟢 Apify & Groq Connected"
 except Exception as e:
     api_status = "🔴 Missing API Keys"
 
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
-    # 1. Search the web (UPDATED QUERY: Strict filtering to avoid broker profiles)
+    # 1. The Bloodhound Query (Hunting for +91 and contact words on open platforms)
     search_query = f'("looking for {property_type}" OR "need {property_type}") {city} ("+91" OR "whatsapp" OR "contact me" OR "call me") (site:facebook.com OR site:sulekha.com OR site:locanto.net OR site:quikr.com) -broker -agent'
     
-    with st.spinner("Scouting the web..."):
-        # Reduced max_results to 5 to keep the data cleaner and faster
-        search_results = tavily_client.search(query=search_query, search_depth="advanced", max_results=5)
-    
-    raw_content = ""
-    for result in search_results.get('results', []):
-        raw_content += f"URL: {result['url']}\nContent: {result['content']}\n\n"
+    with st.spinner("Apify Cloud Browser spinning up... (This takes 15-30 seconds)..."):
+        run_input = {
+            "queries": search_query,
+            "resultsPerPage": 15,
+            "maxPagesPerQuery": 1,
+            "languageCode": "en",
+            "countryCode": "in" # Target India specifically
+        }
+        
+        try:
+            # Calling the FREE Apify Google Search Scraper
+            run = apify_client.actor("apify/google-search-scraper").call(run_input=run_input)
+            
+            raw_content = ""
+            for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
+                organic_results = item.get("organicResults", [])
+                for result in organic_results:
+                    raw_content += f"URL: {result.get('url', '')}\nText: {result.get('title', '')} {result.get('description', '')}\n\n"
+        except Exception as e:
+            st.error(f"Apify Scraping Error: {e}")
+            return []
 
-    # DEFENSIVE CHECK: Make sure we actually found something
+    # DEFENSIVE CHECK
     if not raw_content.strip():
         return []
-
-    # DEFENSIVE TRUNCATION: Hard cap the text at ~40,000 characters just to be safe
     raw_content = raw_content[:40000]
 
-    # 2. Extract with AI (UPDATED PROMPT: The "Iron Wall" against broker spam)
-    with st.spinner("AI filtering noise and extracting leads..."):
+    # 2. Extract with Groq AI
+    with st.spinner("Groq AI extracting contact info..."):
         system_prompt = """
         You are an elite real estate lead data extractor. I will give you raw web search results. 
         Your ONLY mission is to find GENUINE individuals looking to buy, rent, or lease property and extract their contact details.
@@ -107,7 +105,6 @@ def run_scout(city, property_type):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": raw_content}
                 ],
-                # UPGRADED MODEL: Llama 3.1 has a 128,000 token limit!
                 model="llama-3.1-8b-instant", 
                 temperature=0.1,
                 response_format={"type": "json_object"}
@@ -116,7 +113,6 @@ def run_scout(city, property_type):
             response_text = chat_completion.choices[0].message.content
             parsed_json = json.loads(response_text)
             
-            # Groq sometimes wraps arrays in a single dictionary key
             if isinstance(parsed_json, dict) and len(parsed_json.keys()) == 1:
                 key = list(parsed_json.keys())[0]
                 return parsed_json[key]
@@ -197,13 +193,14 @@ if len(st.session_state.lead_database) > 0:
         mime="text/csv",
         type="primary"
     )
-# --- 4. AI Outreach Assistant ---
+
+    # --- 4. AI Outreach Assistant ---
     st.divider()
     st.subheader("💬 AI Outreach Assistant")
     st.markdown("Select a lead below to instantly generate a personalized, high-converting outreach message.")
 
-    # Create a clean list of options for the dropdown
-    lead_options = [f"{lead['Intent']} - {lead['Property Type']} in {lead['Location']} (Budget: {lead['Budget']})" for lead in st.session_state.lead_database]
+    # Create a clean list of options for the dropdown using the NEW data keys
+    lead_options = [f"{lead.get('Intent', 'Lead')} - {lead.get('Requirement_Details', 'Property')} in {lead.get('Location', 'Unknown')} (Phone: {lead.get('Phone', 'N/A')})" for lead in st.session_state.lead_database]
     
     # Dropdown to select a specific lead
     selected_lead_idx = st.selectbox("Select a Lead to Pitch:", range(len(lead_options)), format_func=lambda x: lead_options[x])
@@ -213,20 +210,21 @@ if len(st.session_state.lead_database) > 0:
 
         with st.spinner("Writing the perfect message..."):
             draft_prompt = f"""
-            You are a highly successful, approachable real estate broker making first contact on LinkedIn or Reddit.
-            Write a short, casual, and highly converting direct message (DM) for a prospect.
+            You are a highly successful, approachable real estate broker making first contact on WhatsApp, LinkedIn, or Email.
+            Write a short, casual, and highly converting direct message for a prospect.
             
             Prospect details:
-            - Looking to: {target_lead['Intent']}
-            - Property: {target_lead['Property Type']}
-            - Location: {target_lead['Location']}
-            - Budget: {target_lead['Budget']}
+            - Name: {target_lead.get('Name', 'Unknown')}
+            - Looking to: {target_lead.get('Intent', 'Unknown')}
+            - Requirement: {target_lead.get('Requirement_Details', 'Unknown')}
+            - Location: {target_lead.get('Location', 'Unknown')}
+            - Budget: {target_lead.get('Budget', 'Unknown')}
             
             CRITICAL RULES:
             1. Keep it under 4 sentences. Short and punchy.
-            2. Do not sound like a corporate robot or a desperate salesperson. Sound human, local, and helpful.
+            2. Do not sound like a corporate robot or a desperate salesperson. Sound human, local to {target_city}, and helpful.
             3. Include a clear, low-pressure call to action (e.g., asking if they want you to send over a few off-market options that fit their criteria).
-            4. Leave placeholders like [Your Name] and [Prospect Name].
+            4. Leave placeholders like [Your Name]. If the prospect name is 'Unknown', start with a friendly generic greeting.
             """
 
             try:
