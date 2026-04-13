@@ -62,9 +62,10 @@ def extract_leads_with_ai(raw_content, city):
 
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
-    with st.spinner("Apify Cloud Agent scouting Google for leads..."):
-        # This query targets 99acres and social media for public requirements
-        search_query = f'site:99acres.com OR site:facebook.com "looking for {property_type}" {city} "+91"'
+    with st.spinner(f"Searching 99acres.com for {property_type} in {city}..."):
+        # HARD FILTER: We use 'site:99acres.com' to block Facebook and everything else.
+        # We also look for the "wanted" or "requirement" section snippets.
+        search_query = f'site:99acres.com "{property_type}" {city} ("looking for" OR "requirement")'
         
         run_input = {
             "queries": search_query,
@@ -75,13 +76,15 @@ def run_scout(city, property_type):
         }
         
         try:
-            # Using the OFFICIAL FREE GOOGLE SCRAPER - No rental needed
+            # Using the stable, free Google Scraper
             run = apify_client.actor("apify/google-search-scraper").call(run_input=run_input)
             
             raw_text = ""
             for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
                 for result in item.get("organicResults", []):
-                    raw_text += f"Title: {result.get('title')}\nDesc: {result.get('description')}\nURL: {result.get('url')}\n\n"
+                    # Double check: Only add if it's actually a 99acres link
+                    if "99acres.com" in result.get('url', ''):
+                        raw_text += f"Title: {result.get('title')}\nDesc: {result.get('description')}\nURL: {result.get('url')}\n\n"
             
             if not raw_text:
                 return []
@@ -89,7 +92,7 @@ def run_scout(city, property_type):
             return extract_leads_with_ai(raw_text, city)
                 
         except Exception as e:
-            st.error(f"Apify Error: {str(e)}")
+            st.error(f"Scraper Error: {str(e)}")
             return []
 
 # --- Main UI ---
