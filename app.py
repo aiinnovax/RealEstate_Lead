@@ -41,21 +41,19 @@ except Exception as e:
 
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
-    with st.spinner(f"Directly Scraping 99acres for {property_type} in {city}..."):
-        # We format the city for 99acres URL structure
-        clean_city = city.lower().replace(" ", "-")
-        target_url = f"https://www.99acres.com/search/property/buy/{clean_city}"
+    with st.spinner(f"Force-scanning 99acres listings in {city}..."):
+        # We are changing the URL to a standard search result page
+        # This page is more likely to give the scraper raw data
+        formatted_city = city.lower().replace(" ", "-")
+        target_url = f"https://www.99acres.com/{property_type.replace(' ', '-')}-in-{formatted_city}-ffid"
         
-        # This is the "Universal Input" - we provide both styles to stop the 'Failed' error
         run_input = {
             "direct_search_urls": [target_url],
             "directSearchUrls": [target_url],
-            "location": city,
-            "max_items": 10
+            "maxItems": 10
         }
         
         try:
-            # Using your acquired specialized scraper
             actor_id = "fatihtahta/99acres-scraper"
             run = apify_client.actor(actor_id).call(run_input=run_input)
             
@@ -64,7 +62,15 @@ def run_scout(city, property_type):
                 raw_data.append(item)
             
             if not raw_data:
+                # DEBUG: If no data, let's see why
+                st.write("🔍 Apify ran, but 99acres returned 0 results for this URL.")
                 return []
+                
+            return extract_leads_with_ai(json.dumps(raw_data)[:50000], city)
+                
+        except Exception as e:
+            st.error(f"Apify System Error: {str(e)}")
+            return []
             
             # Convert the deep data to string for the AI to analyze
             raw_content = json.dumps(raw_data)[:50000]
