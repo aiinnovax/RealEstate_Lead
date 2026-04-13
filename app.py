@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 from datetime import datetime
+from apify_client import ApifyClient
 from tavily import TavilyClient
 from groq import Groq
 
