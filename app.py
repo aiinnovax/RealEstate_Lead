@@ -39,71 +39,69 @@ try:
 except Exception as e:
     api_status = "🔴 Missing API Keys"
 
-# --- AI Extraction Helper ---
-def extract_leads_with_ai(raw_content, city):
-    system_prompt = f"""
-    You are a Real Estate Data Expert. I will provide snippets from Google search results.
-    TASK: Identify individuals in {city} who want to buy or rent property.
-    RULES: 
-    1. EXCLUDE Brokers. 
-    2. Extract: Name, Phone, Requirement_Details, Budget, Source_Link.
-    Return JSON with a 'leads' key containing an array.
-    """
-    try:
-        chat_completion = groq_client.chat.completions.create(
-            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": raw_content}],
-            model="llama-3.1-8b-instant", 
-            temperature=0.1,
-            response_format={"type": "json_object"}
-        )
-        return json.loads(chat_completion.choices[0].message.content).get("leads", [])
-    except:
-        return []
-
 # --- AI Scout Logic ---
 def run_scout(city, property_type):
-    with st.spinner(f"Searching 99acres.com for {property_type} in {city}..."):
-        # HARD FILTER: We use 'site:99acres.com' to block Facebook and everything else.
-        # We also look for the "wanted" or "requirement" section snippets.
-        search_query = f'site:99acres.com "{property_type}" {city} ("looking for" OR "requirement")'
+    with st.spinner(f"Directly Scraping 99acres for {property_type} in {city}..."):
+        # We format the city for 99acres URL structure
+        clean_city = city.lower().replace(" ", "-")
+        target_url = f"https://www.99acres.com/search/property/buy/{clean_city}"
         
+        # This is the "Universal Input" - we provide both styles to stop the 'Failed' error
         run_input = {
-            "queries": search_query,
-            "maxPagesPerQuery": 1,
-            "resultsPerPage": 15,
-            "countryCode": "in",
-            "languageCode": "en"
+            "direct_search_urls": [target_url],
+            "directSearchUrls": [target_url],
+            "location": city,
+            "max_items": 10
         }
         
         try:
-            # Using the stable, free Google Scraper
-            run = apify_client.actor("apify/google-search-scraper").call(run_input=run_input)
+            # Using your acquired specialized scraper
+            actor_id = "fatihtahta/99acres-scraper"
+            run = apify_client.actor(actor_id).call(run_input=run_input)
             
-            raw_text = ""
+            raw_data = []
             for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
-                for result in item.get("organicResults", []):
-                    # Double check: Only add if it's actually a 99acres link
-                    if "99acres.com" in result.get('url', ''):
-                        raw_text += f"Title: {result.get('title')}\nDesc: {result.get('description')}\nURL: {result.get('url')}\n\n"
+                raw_data.append(item)
             
-            if not raw_text:
+            if not raw_data:
                 return []
             
-            return extract_leads_with_ai(raw_text, city)
+            # Convert the deep data to string for the AI to analyze
+            raw_content = json.dumps(raw_data)[:50000]
                 
         except Exception as e:
-            st.error(f"Scraper Error: {str(e)}")
+            st.error(f"Apify System Error: {str(e)}")
+            return []
+
+    # 2. Extract with Groq AI (The Brain)
+    with st.spinner("AI Brain extracting high-quality leads..."):
+        system_prompt = f"""
+        You are a Real Estate Analyst. Analyze the 99acres JSON data.
+        1. Identify GENUINE buyer/renter requirements.
+        2. Filter out all Company/Broker listings.
+        3. Extract: Name, Phone (if present), Requirement (e.g. 2BHK/Office), Budget, and Source_Link.
+        Return ONLY a JSON object with a 'leads' key.
+        """
+        try:
+            chat_completion = groq_client.chat.completions.create(
+                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": raw_content}],
+                model="llama-3.1-8b-instant", 
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+            return json.loads(chat_completion.choices[0].message.content).get("leads", [])
+        except:
             return []
 
 # --- Main UI ---
-st.title("🏢 AI Real Estate Lead Scout")
-st.caption(f"Status: {api_status} | Mode: Multi-Source Cloud Scout")
+st.title("🏢 99acres AI Lead Scout")
+st.caption(f"Status: {api_status} | Target: Pure 99acres Data")
 
 with st.sidebar:
     st.header("Search Parameters")
-    city_input = st.text_input("City", value="Ahmedabad")
+    city_input = st.text_input("Target City", value="Ahmedabad")
     p_type = st.text_input("Property Type", value="office space")
-    run_btn = st.button("🚀 Find Leads", type="primary")
+    run_btn = st.button("🚀 Scrape 99acres", type="primary")
 
 if "leads" not in st.session_state:
     st.session_state.leads = []
@@ -112,28 +110,18 @@ if run_btn:
     results = run_scout(city_input, p_type)
     if results:
         for r in results:
-            r["Date"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            r["Date_Found"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             st.session_state.leads.append(r)
-        st.success(f"Found {len(results)} potential leads!")
+        st.success(f"Verified {len(results)} leads from 99acres!")
     else:
-        st.warning("No new leads found. Try a different property type.")
+        st.warning("No unmasked leads found. Verify your Apify Actor rental is active.")
 
 # --- Results Table ---
 if st.session_state.leads:
     df = pd.DataFrame(st.session_state.leads)
+    if "Source_Link" in df.columns:
+        df = df.drop_duplicates(subset=['Source_Link'])
     st.dataframe(df, use_container_width=True)
     
-    # --- Outreach Assistant ---
-    st.divider()
-    st.subheader("💬 Smart Outreach")
-    lead_options = [f"{l.get('Name', 'Lead')} - {l.get('Phone', 'No Phone')}" for l in st.session_state.leads]
-    selected_idx = st.selectbox("Select lead:", range(len(lead_options)), format_func=lambda x: lead_options[x])
-    
-    if st.button("✨ Write WhatsApp Message"):
-        lead = st.session_state.leads[selected_idx]
-        msg_prompt = f"Write a professional WhatsApp message for a broker to a lead looking for {lead.get('Requirement_Details')} in {city_input}."
-        pitch = groq_client.chat.completions.create(
-            messages=[{"role": "user", "content": msg_prompt}],
-            model="llama-3.1-8b-instant"
-        ).choices[0].message.content
-        st.text_area("Message:", value=pitch, height=150)
+    csv_data = df.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Download CSV", data=csv_data, file_name="99acres_leads.csv", mime="text/csv")
