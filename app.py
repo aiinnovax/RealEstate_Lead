@@ -71,13 +71,13 @@ def extract_leads_with_ai(raw_content, city):
 def run_scout(city, property_type):
     with st.spinner("Apify Agent is accessing 99acres..."):
         formatted_city = city.lower().replace(" ", "-")
-        # Target search URL
         target_url = f"https://www.99acres.com/search/property/buy/{formatted_city}"
         
-        # CORRECTED INPUT MAPPING for fatihtahta/99acres-scraper
+        # UPDATED INPUT MAPPING: Using the underscore format 'direct_search_urls'
+        # as requested by the latest version of the fatihtahta scraper
         run_input = {
-            "directSearchUrls": [target_url], # Needs to be a list
-            "maxItems": 10
+            "direct_search_urls": [target_url], 
+            "max_items": 10
         }
         
         try:
@@ -119,7 +119,7 @@ if run_btn:
             st.session_state.leads.append(r)
         st.success(f"Successfully processed {len(results)} potential records!")
     else:
-        st.warning("No new leads found. Verify your Apify Actor rental status if this continues.")
+        st.warning("No new leads found. Check Apify logs or rental status.")
 
 # --- Results Table ---
 if st.session_state.leads:
@@ -127,7 +127,6 @@ if st.session_state.leads:
     df = pd.DataFrame(st.session_state.leads)
     if "Source_Link" in df.columns:
         df = df.drop_duplicates(subset=['Source_Link'])
-    
     st.dataframe(df, use_container_width=True)
     
     csv_data = df.to_csv(index=False).encode('utf-8')
@@ -136,14 +135,16 @@ if st.session_state.leads:
     # --- Outreach Assistant ---
     st.divider()
     st.subheader("💬 Smart Outreach")
-    selected_lead = st.selectbox("Select lead to contact:", range(len(st.session_state.leads)), 
-                                 format_func=lambda x: f"{st.session_state.leads[x].get('Name', 'Lead')} - {st.session_state.leads[x].get('Phone', 'No Phone')}")
-    
-    if st.button("✨ Write WhatsApp Message"):
-        lead = st.session_state.leads[selected_lead]
-        msg_prompt = f"Write a professional, friendly WhatsApp message for a broker contacting a lead about {lead.get('Requirement_Details')} in {city_input}. Short and helpful."
-        pitch = groq_client.chat.completions.create(
-            messages=[{"role": "user", "content": msg_prompt}],
-            model="llama-3.1-8b-instant"
-        ).choices[0].message.content
-        st.text_area("Message:", value=pitch, height=150)
+    # Helper to prevent indexing errors if database is empty
+    if len(st.session_state.leads) > 0:
+        lead_options = [f"{l.get('Name', 'Lead')} - {l.get('Phone', 'No Phone')}" for l in st.session_state.leads]
+        selected_idx = st.selectbox("Select lead:", range(len(lead_options)), format_func=lambda x: lead_options[x])
+        
+        if st.button("✨ Write WhatsApp Message"):
+            lead = st.session_state.leads[selected_idx]
+            msg_prompt = f"Write a professional WhatsApp message for a lead looking for {lead.get('Requirement_Details')} in {city_input}."
+            pitch = groq_client.chat.completions.create(
+                messages=[{"role": "user", "content": msg_prompt}],
+                model="llama-3.1-8b-instant"
+            ).choices[0].message.content
+            st.text_area("Message:", value=pitch, height=150)
